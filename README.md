@@ -4,7 +4,7 @@ Knowledge Retrieval MCP Server (v1). Provides `search_knowledge` and `read_knowl
 
 The design goal is **stable and verifiable recording of an Agent's knowledge retrieval behavior**, not maximum retrieval quality. v1 uses weighted lexical retrieval and relies on Agent-side query rewriting for recall.
 
-Design doc: see `docs/knowledge_retrieval_mcp_v1.md` in the qa_skill_repo, or copy that file into this repo's `docs/` if working stand-alone.
+Design doc: [docs/knowledge_retrieval_mcp_v1.md](./docs/knowledge_retrieval_mcp_v1.md).
 
 ## Status
 
