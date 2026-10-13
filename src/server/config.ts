@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const ConfigSchema = z.object({
   knowledgeRoot: z.string().min(1, "KNOWLEDGE_ROOT must be set"),

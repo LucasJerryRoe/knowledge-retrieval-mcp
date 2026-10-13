@@ -3,11 +3,19 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import type { Config } from "./config.js";
 import { searchKnowledgeTool, handleSearchKnowledge } from "../tools/search-knowledge.js";
 import { readKnowledgeTool, handleReadKnowledge } from "../tools/read-knowledge.js";
+import type { KnowledgeRuntime } from "./runtime.js";
 
-export function createServer(config: Config): Server {
+function errorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }],
+    isError: true,
+  };
+}
+
+export function createServer(runtime: KnowledgeRuntime): Server {
   const server = new Server(
     {
       name: "knowledge-retrieval-mcp",
@@ -26,13 +34,21 @@ export function createServer(config: Config): Server {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    switch (name) {
-      case searchKnowledgeTool.name:
-        return handleSearchKnowledge(args ?? {}, config);
-      case readKnowledgeTool.name:
-        return handleReadKnowledge(args ?? {}, config);
-      default:
-        throw new Error(`Unknown tool: ${name}`);
+    try {
+      switch (name) {
+        case searchKnowledgeTool.name: {
+          const rawSessionId = request.params._meta?.session_id;
+          const sessionId =
+            typeof rawSessionId === "string" ? rawSessionId : undefined;
+          return await handleSearchKnowledge(args ?? {}, runtime, sessionId);
+        }
+        case readKnowledgeTool.name:
+          return await handleReadKnowledge(args ?? {}, runtime);
+        default:
+          return errorResponse(new Error(`Unknown tool: ${name}`));
+      }
+    } catch (error) {
+      return errorResponse(error);
     }
   });
 

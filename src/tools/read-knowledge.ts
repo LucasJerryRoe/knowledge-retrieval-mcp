@@ -1,5 +1,5 @@
-import { z } from "zod";
-import type { Config } from "../server/config.js";
+import { z } from "zod/v4";
+import type { KnowledgeRuntime } from "../server/runtime.js";
 
 const ReadKnowledgeInputSchema = z.object({
   candidate_id: z.string().min(1),
@@ -23,17 +23,13 @@ export const readKnowledgeTool = {
 
 export async function handleReadKnowledge(
   rawArgs: Record<string, unknown>,
-  _config: Config,
+  runtime: KnowledgeRuntime,
 ) {
   const args = ReadKnowledgeInputSchema.parse(rawArgs);
-
-  // TODO(step 9+): resolve candidate -> knowledge -> markdown, and write knowledge_read trace.
-  const payload = {
-    error: "NOT_IMPLEMENTED",
-    candidate_id: args.candidate_id,
-  };
+  const payload = await runtime.read(args.candidate_id);
 
   return {
     content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
+    isError: "error" in payload,
   };
 }
