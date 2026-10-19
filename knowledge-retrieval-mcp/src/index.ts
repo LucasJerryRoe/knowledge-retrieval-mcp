@@ -2,10 +2,12 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig } from "./server/config.js";
 import { createServer } from "./server/create-server.js";
+import { KnowledgeRuntime } from "./server/runtime.js";
 
 async function main() {
   const config = loadConfig();
-  const server = createServer(config);
+  const runtime = await KnowledgeRuntime.create(config);
+  const server = createServer(runtime);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("knowledge-retrieval-mcp started");

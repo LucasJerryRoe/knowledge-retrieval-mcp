@@ -193,7 +193,7 @@ Vitest
 建议创建：
 
 ```text
-knowledge-retrieval-mcp/
+mcp-development/
 
 ├── src/
 │

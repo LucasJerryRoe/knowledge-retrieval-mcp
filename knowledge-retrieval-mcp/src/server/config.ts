@@ -1,10 +1,10 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const ConfigSchema = z.object({
   knowledgeRoot: z.string().min(1, "KNOWLEDGE_ROOT must be set"),
   traceDbPath: z.string().min(1, "TRACE_DB_PATH must be set"),
-  defaultTopK: z.number().int().positive().default(8),
-  maxTopK: z.number().int().positive().default(10),
+  defaultTopK: z.number().int().positive().default(20),
+  maxTopK: z.number().int().positive().default(30),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
