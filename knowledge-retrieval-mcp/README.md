@@ -34,44 +34,61 @@ MCP Tools ----> KnowledgeRuntime
 MCP 层、检索层、知识仓储与 Trace 持久化相互解耦。检索实现可替换，
 替换检索引擎时 MCP 接口保持不变。
 
-## 环境要求
+## 安装与配置
 
-- Node.js >= 20
-- 一份本地可读的 Markdown 知识库目录
+使用者只需要准备 Node.js 和一份本地 Markdown 知识库。不需要安装或启动 MySQL、
+PostgreSQL 等数据库服务。
 
-## 安装与构建
+### 1. 安装
+
+要求 Node.js >= 20。克隆仓库后，安装依赖并构建：
 
 ```bash
-cd knowledge-retrieval-mcp
+git clone git@code.byted.org:motor_qa/mcp-development.git
+cd mcp-development/knowledge-retrieval-mcp
 npm install
 npm run build
 ```
 
-## 配置
+### 2. 准备两个本地路径
 
-通过环境变量注入：
+| 路径 | 示例 | 用途 |
+| --- | --- | --- |
+| 知识库路径 | `/Users/me/wiki` | 存放 Markdown 文档的目录。MCP 只读取此目录，不修改原文。 |
+| 留痕库路径 | `/Users/me/.knowledge-retrieval/trace.db` | 保存搜索、候选、阅读与证据引用记录的 SQLite 文件。文件及不存在的父目录会自动创建。 |
+
+留痕库是本机 SQLite 文件，不需要单独安装数据库。运行期间同目录还可能出现
+`trace.db-wal` 与 `trace.db-shm`，它们是 SQLite 的运行时辅助文件，应与
+`trace.db` 一起保留。
+
+### 3. 在 MCP 客户端中配置
+
+把上面的两个路径分别填入 `KNOWLEDGE_ROOT` 和 `TRACE_DB_PATH`：
 
 | 环境变量 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `KNOWLEDGE_ROOT` | 是 | - | Markdown 知识库根目录的绝对路径 |
-| `TRACE_DB_PATH` | 是 | - | SQLite trace 数据库文件路径 |
+| `TRACE_DB_PATH` | 是 | - | SQLite 留痕库文件的绝对路径，可指向尚不存在的新文件 |
 | `DEFAULT_TOP_K` | 否 | `20` | 未传 `top_k` 时的候选数量 |
 | `MAX_TOP_K` | 否 | `30` | 允许请求的最大候选数量 |
 
 `DEFAULT_TOP_K` 必须不大于 `MAX_TOP_K`。
 
-## 接入 MCP 客户端
+### 4. 接入客户端
+
+以下示例假设 MCP 安装在 `/Users/me/mcp-development/knowledge-retrieval-mcp`，
+知识库位于 `/Users/me/wiki`。将路径替换为自己的实际位置。
 
 Codex（`config.toml`）：
 
 ```toml
 [mcp_servers.knowledge]
 command = "node"
-args = ["/absolute/path/to/knowledge-retrieval-mcp/dist/index.js"]
+args = ["/Users/me/mcp-development/knowledge-retrieval-mcp/dist/index.js"]
 
 [mcp_servers.knowledge.env]
-KNOWLEDGE_ROOT = "/absolute/path/to/wiki"
-TRACE_DB_PATH = "/absolute/path/to/knowledge-retrieval-mcp/data/trace.db"
+KNOWLEDGE_ROOT = "/Users/me/wiki"
+TRACE_DB_PATH = "/Users/me/.knowledge-retrieval/trace.db"
 ```
 
 Trae / Claude 等使用 JSON 配置的客户端：
@@ -81,15 +98,17 @@ Trae / Claude 等使用 JSON 配置的客户端：
   "mcpServers": {
     "knowledge-retrieval": {
       "command": "node",
-      "args": ["/absolute/path/to/knowledge-retrieval-mcp/dist/index.js"],
+      "args": ["/Users/me/mcp-development/knowledge-retrieval-mcp/dist/index.js"],
       "env": {
-        "KNOWLEDGE_ROOT": "/absolute/path/to/wiki",
-        "TRACE_DB_PATH": "/absolute/path/to/knowledge-retrieval-mcp/data/trace.db"
+        "KNOWLEDGE_ROOT": "/Users/me/wiki",
+        "TRACE_DB_PATH": "/Users/me/.knowledge-retrieval/trace.db"
       }
     }
   }
 }
 ```
+
+配置保存并重启 MCP 客户端后，即可调用 `search_knowledge`。
 
 开发模式用 `npm run dev`。用 MCP Inspector 检查工具发现与调用：
 
