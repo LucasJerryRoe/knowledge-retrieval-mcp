@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Retrieval Trace</title>
+<style>
+:root { --bg: #f5f5f5; --card: #fff; --text: #333; --muted: #888; --blue: #2563eb; --green: #059669; --purple: #7c3aed; --red: #dc2626; --orange: #d97706; --border: #e5e7eb; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); padding: 16px; }
+h1 { font-size: 20px; margin-bottom: 4px; }
+.subtitle { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat { background: var(--card); border-radius: 8px; padding: 12px 16px; min-width: 100px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.stat .val { font-size: 24px; font-weight: 700; color: var(--blue); }
+.stat .label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 13px; background: #fff; color: var(--text); }
+.tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.panel { display: none; }
+.panel.active { display: block; }
+.card { background: var(--card); border-radius: 8px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; cursor: pointer; }
+.card-header:hover { opacity: .8; }
+.card-id { font-family: monospace; font-size: 12px; color: var(--muted); }
+.card-title { font-weight: 600; margin-bottom: 4px; }
+.card-meta { font-size: 11px; color: var(--muted); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #e5e7eb; color: var(--text); }
+.badge-ok { background: #d1fae5; color: var(--green); }
+.badge-info { background: #ede9fe; color: var(--purple); }
+.badge-warn { background: #fef3c7; color: var(--orange); }
+.badge-err { background: #fee2e2; color: var(--red); }
+.empty { text-align: center; color: var(--muted); padding: 24px; font-size: 13px; }
+.mono { font-family: monospace; font-size: 12px; }
+.rows { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.cat-card { background: var(--card); border-radius: 8px; padding: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.cat-card .num { font-size: 28px; font-weight: 700; color: var(--blue); }
+.cat-card .name { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.cat-card .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.insight-card { margin-bottom: 12px; }
+.insight-card .insight-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+
+/* Task detail */
+.detail { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; }
+.detail-section { margin-bottom: 16px; }
+.detail-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.detail-section h4 .count { font-size: 11px; font-weight: 400; color: var(--muted); }
+.search-block { border-left: 3px solid var(--blue); padding: 8px 12px; margin-bottom: 8px; background: #f8fafd; border-radius: 0 6px 6px 0; }
+.search-block .qtext { font-weight: 600; font-size: 13px; }
+.candidate-row { font-size: 12px; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; }
+.candidate-row:last-child { border-bottom: none; }
+.candidate-row .kid { color: var(--muted); max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.read-row { font-size: 12px; padding: 4px 0; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #f0f0f0; }
+.read-row:last-child { border-bottom: none; }
+.read-row .kid { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evidence-row { font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+.evidence-row:last-child { border-bottom: none; }
+.expand-icon { transition: transform .2s; font-size: 10px; margin-right: 4px; }
+.expand-icon.open { transform: rotate(90deg); }
+.loading { padding: 12px; text-align: center; color: var(--muted); font-size: 12px; }
+/* quality */
+.quality-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.quality-card { background: var(--card); border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.quality-card .num { font-size: 28px; font-weight: 700; }
+.quality-card .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.quality-card .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.q-warn { color: var(--orange); }
+.q-danger { color: var(--red); }
+.q-ok { color: var(--green); }
+.quality-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+.quality-table th { text-align: left; padding: 6px 8px; background: #f8fafd; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--muted); font-size: 11px; }
+.quality-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
+.quality-table .kid { font-family: monospace; font-size: 11px; color: var(--muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.quality-section { margin-bottom: 20px; }
+.quality-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.task-quality-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #f0f0f0; font-size: 12px; }
+.task-quality-row:last-child { border-bottom: none; }
+.task-quality-row .tid { font-family: monospace; font-size: 11px; color: var(--muted); min-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-quality-row .desc { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.task-quality-row .metric { flex-shrink: 0; text-align: center; min-width: 50px; }
+.task-quality-row .metric .v { font-weight: 600; }
+.task-quality-row .metric .l { font-size: 10px; color: var(--muted); }
+.task-quality-header { display: flex; align-items: center; padding: 6px 12px; font-size: 11px; color: var(--muted); font-weight: 600; background: #f8fafd; border-radius: 6px 6px 0 0; border: 1px solid #f0f0f0; }
+.task-quality-header .tid-h { min-width: 100px; }
+.task-quality-header .desc-h { flex: 1; }
+.task-quality-header .metric-h { min-width: 50px; text-align: center; }
+.task-quality-body { border: 1px solid #f0f0f0; border-top: none; border-radius: 0 0 6px 6px; }
+.scale-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 1px; background: #e5e7eb; min-width: 80px; }
+.scale-bar .seg { transition: width .3s; }
+.scale-bar .seg-read { background: var(--green); }
+.scale-bar .seg-not-adopted { background: var(--orange); }
+.scale-bar .seg-unread { background: var(--red); }
+</style>
+</head>
+<body>
+<h1>知识检索 Trace</h1>
+<div class="subtitle">实时刷新 · 每 3 秒</div>
+
+<div id="insight-stats" class="stats"></div>
+
+<div class="tabs">
+  <button class="tab" data-panel="insights">洞察</button>
+  <button class="tab active" data-panel="tasks">Knowledge Task</button>
+  <button class="tab" data-panel="quality">质量分析</button>
+  <button class="tab" data-panel="docs">文档索引</button>
+</div>
+
+<div id="panel-insights" class="panel"></div>
+<div id="panel-tasks" class="panel active"></div>
+<div id="panel-quality" class="panel"></div>
+<div id="panel-docs" class="panel"></div>
+
+<script>
+const API = "";
+let docMap = {};
+let summary = {};
+let taskCache = {};  // taskId → expanded detail
+
+async function fetchAPI(path) {
+  const res = await fetch(API + path);
+  return res.json();
+}
+
+async function refresh() {
+  try {
+    const [sum, tasks, docs, qualitySearches] = await Promise.all([
+      fetchAPI("/api/summary"),
+      fetchAPI("/api/tasks"),
+      fetchAPI("/api/docs"),
+      fetchAPI("/api/quality/searches")
+    ]);
+    summary = sum;
+    docMap = {};
+    for (const d of docs) docMap[d.knowledge_id] = d;
+
+    renderStats(sum);
+    renderInsights(sum, tasks);
+    renderTasks(tasks);
+    renderQuality(qualitySearches);
+    renderDocs(docs);
+  } catch(e) { console.error(e); }
+}
+
+function esc(s) { return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function shortId(id, n=8) { return id ? id.substring(0,n) : ""; }
+
+// --- Stats ---
+function renderStats(s) {
+  document.getElementById("insight-stats").innerHTML =
+    `<div class="stat"><div class="val">${s.tasks}</div><div class="label">Tasks</div></div>
+    <div class="stat"><div class="val">${s.activeTasks}</div><div class="label">活跃</div></div>
+    <div class="stat"><div class="val">${s.searches}</div><div class="label">搜索</div></div>
+    <div class="stat"><div class="val">${s.reads}</div><div class="label">文档读取</div></div>
+    <div class="stat"><div class="val">${s.evidence}</div><div class="label">证据</div></div>
+    <div class="stat"><div class="val">${s.docs}</div><div class="label">文档索引</div></div>`;
+}
+
+// --- Insights ---
+function renderInsights(sum, tasks) {
+  const html = [];
+  if (sum.catDist?.length) {
+    html.push('<div class="insight-card"><div class="insight-title">分类分布</div><div class="cat-grid">' +
+      sum.catDist.map(c => `<div class="cat-card">
+        <div class="num">${c.n}</div>
+        <div class="name">${esc(c.category)}</div>
+        <div class="sub"><span style="color:var(--green)">实体 ${c.entity}</span> · <span style="color:var(--purple)">概念 ${c.concept}</span> · <span style="color:var(--muted)">未分类 ${c.unclassified}</span></div>
+      </div>`).join('') + '</div></div>');
+  }
+  if (tasks.length) {
+    const multiSearch = tasks.filter(t => t.search_count > 1);
+    html.push('<div class="insight-card card"><div class="insight-title">Task 概览</div>' +
+      `<div class="card-meta">多次检索: <b>${multiSearch.length}</b> · 搜: <b>${sum.searches}</b> · 读: <b>${sum.reads}</b> · 证据: <b>${sum.evidence}</b></div>` +
+      '</div>');
+  }
+  document.getElementById("panel-insights").innerHTML = html.join("") || '<div class="empty">暂无数据</div>';
+}
+
+// --- Quality ---
+function renderQuality(searches) {
+  if (!searches) return document.getElementById("panel-quality").innerHTML = '<div class="loading">加载中...</div>';
+  if (!searches.length) return document.getElementById("panel-quality").innerHTML = '<div class="empty">暂无搜索记录，执行知识检索后自动生成</div>';
+
+  // Group by task
+  const taskGroups = {};
+  for (const s of searches) {
+    (taskGroups[s.taskId] ??= { taskId: s.taskId, taskDesc: s.taskDesc, searches: [] }).searches.push(s);
+  }
+
+  // Aggregate stats
+  const totalSearches = searches.length;
+  const knowledgeGapSearches = searches.filter(s => s.quality === "knowledge_gap").length;
+  const effectiveSearches = searches.filter(s => s.quality === "effective").length;
+  const totalCandidates = searches.reduce((s, q) => s + q.candidateCount, 0);
+  const totalRead = searches.reduce((s, q) => s + q.readCount, 0);
+  const totalAdopted = searches.reduce((s, q) => s + q.adoptedCount, 0);
+
+  let h = '';
+
+  // ---- Aggregate cards ----
+  h += '<div class="quality-grid">' +
+    '<div class="quality-card"><div class="num">' + totalSearches + '</div><div class="label">搜索次数</div></div>' +
+    '<div class="quality-card"><div class="num q-danger">' + knowledgeGapSearches + '</div><div class="label">知识缺失</div><div class="sub">读了全文但无证据 — 需补充 Wiki</div></div>' +
+    '<div class="quality-card"><div class="num">' + effectiveSearches + '</div><div class="label">有效搜索</div><div class="sub">产生证据引用</div></div>' +
+    '<div class="quality-card"><div class="num">' + totalCandidates + '</div><div class="label">总召回</div><div class="sub">' + totalRead + ' 读 · ' + totalAdopted + ' 采用</div></div>' +
+  '</div>';
+
+  // ---- Per-task search detail ----
+  for (const [taskId, group] of Object.entries(taskGroups)) {
+    const gapCount = group.searches.filter(s => s.quality === "knowledge_gap").length;
+    const unreadCount = group.searches.filter(s => s.quality === "unread").length;
+    const effectiveCount = group.searches.filter(s => s.quality === "effective").length;
+    const taskTotal = group.searches.reduce((t, s) => t + s.candidateCount, 0);
+    const taskRead = group.searches.reduce((t, s) => t + s.readCount, 0);
+    const taskAdopted = group.searches.reduce((t, s) => t + s.adoptedCount, 0);
+
+    // Task-level quality: 仅标记知识缺失
+    let taskLabel = "";
+    let taskLabelCls = "";
+    if (gapCount > 0 && effectiveCount === 0) {
+      taskLabel = "知识缺失";
+      taskLabelCls = "badge-err";
+    }
+
+    h += '<div class="card" style="margin-bottom:12px">' +
+      '<div class="card-header" style="flex-wrap:wrap;gap:4px">' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<span class="expand-icon" id="qexp-' + taskId + '" onclick="toggleQualityExpand(\'' + taskId + '\')">▶</span>' +
+          '<span class="card-id mono">' + shortId(taskId) + '</span>' +
+          (taskLabel ? '<span class="badge ' + taskLabelCls + '">' + taskLabel + '</span>' : '') +
+          '<span class="card-title" style="font-size:13px">' + esc(group.taskDesc || '(无描述)') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card-meta">' +
+        group.searches.length + ' 次搜索 · 召回 ' + taskTotal + ' · 阅读 ' + taskRead + ' · 证据 ' + taskAdopted +
+        (gapCount > 0 ? ' · <span class="q-danger">知识缺失 ' + gapCount + '</span>' : '') +
+        (unreadCount > 0 ? ' · <span class="q-warn">未读 ' + unreadCount + '</span>' : '') +
+      '</div>' +
+      '<div class="detail" id="qdetail-' + taskId + '" style="display:none">' +
+        group.searches.map(s => renderSearchQualityRow(s)).join("") +
+      '</div>' +
+    '</div>';
+  }
+
+  document.getElementById("panel-quality").innerHTML = h;
+}
+
+function renderSearchQualityRow(s) {
+  const qualityBadge = s.quality === "effective" ? '<span class="badge badge-ok">有效</span>' :
+                       s.quality === "knowledge_gap" ? '<span class="badge badge-err">知识缺失</span>' :
+                       '';
+
+  const graphTotal = s.candidateCount || 1;
+  const adoptedPct = Math.round((s.adoptedCount / graphTotal) * 100) || 0;
+  const notAdoptedPct = Math.round((s.readNotAdoptedCount / graphTotal) * 100) || 0;
+  const unreadPct = Math.round((s.unreadCount / graphTotal) * 100) || 0;
+
+  let h = '<div class="search-block" style="border-left-color:' +
+    (s.quality === "effective" ? 'var(--green)' : s.quality === "knowledge_gap" ? 'var(--red)' : 'var(--border)') + '">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">' +
+      '<div style="flex:1">' +
+        '<span class="qtext" style="font-size:13px">"' + esc(s.queryText) + '"</span>' +
+      '</div>' +
+      '<span style="flex-shrink:0">' + qualityBadge + '</span>' +
+    '</div>' +
+    '<div class="card-meta">top_k: ' + s.topK + ' · 候选 ' + s.candidateCount +
+      ' · 已读 ' + s.readCount + ' · 证据 ' + s.adoptedCount +
+      (s.latencyMs ? ' · ' + s.latencyMs + 'ms' : '') +
+    '</div>' +
+    // Funnel bar
+    '<div style="margin-top:6px">' +
+      '<span class="scale-bar" style="width:100%">' +
+        (adoptedPct > 0 ? '<span class="seg seg-read" style="width:' + adoptedPct + '%" title="已读且有证据 ' + s.adoptedCount + '"></span>' : '') +
+        (notAdoptedPct > 0 ? '<span class="seg seg-not-adopted" style="width:' + notAdoptedPct + '%" title="已读无证据 ' + s.readNotAdoptedCount + '"></span>' : '') +
+        (unreadPct > 0 ? '<span class="seg seg-unread" style="width:' + unreadPct + '%" title="未读 ' + s.unreadCount + '"></span>' : '') +
+      '</span>' +
+    '</div>';
+
+  // 知识缺失：读了但无证据（核心关注点）
+  if (s.readNotAdoptedCount > 0) {
+    h += '<div style="margin-top:6px;font-size:11px;color:var(--red)">知识缺失：' +
+      s.readNotAdopted.map(c => '<span style="margin:0 3px;display:inline-block" title="' + esc(c.knowledge_id) + '">' +
+        esc(c.title || c.knowledge_id) + '</span>').join("、") +
+    '</div>';
+  }
+
+  // 已采用：读了且有证据
+  if (s.adoptedCount > 0) {
+    h += '<div style="margin-top:4px;font-size:11px;color:var(--green)">已采用：' +
+      s.adopted.map(c => '<span style="margin:0 3px;display:inline-block" title="' + esc(c.knowledge_id) + '">' +
+        esc(c.title || c.knowledge_id) + '</span>').join("、") +
+    '</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function toggleQualityExpand(taskId) {
+  const detail = document.getElementById("qdetail-" + taskId);
+  const icon = document.getElementById("qexp-" + taskId);
+  if (!detail || !icon) return;
+  if (detail.style.display === "none") {
+    detail.style.display = "block";
+    icon.classList.add("open");
+  } else {
+    detail.style.display = "none";
+    icon.classList.remove("open");
+  }
+}
+
+// --- Tasks (expandable) ---
+async function toggleTask(taskId, el) {
+  const detailEl = el.querySelector(".task-detail");
+  if (detailEl) {
+    // Collapse
+    detailEl.remove();
+    delete taskCache[taskId];
+    return;
+  }
+
+  // Expand
+  const info = taskCache[taskId];
+  const detail = info || await fetchAPI("/api/tasks/" + encodeURIComponent(taskId));
+  if (!info) taskCache[taskId] = detail;
+
+  const div = document.createElement("div");
+  div.className = "detail task-detail";
+
+  if (!detail || !detail.task) {
+    div.innerHTML = '<div class="empty">加载失败</div>';
+  } else {
+    div.innerHTML = renderTaskDetail(detail);
+  }
+  el.appendChild(div);
+}
+
+function renderTaskDetail(detail) {
+  const { searches, reads, evidence, candidatesBySearch } = detail;
+  let h = '';
+
+  // --- Searches ---
+  h += '<div class="detail-section"><h4>搜索记录 <span class="count">(' + searches.length + ')</span></h4>';
+  for (const s of searches) {
+    const badge = s.status === 'SUCCESS' ? 'badge-ok' : s.status === 'FAILED' ? 'badge-err' : 'badge-warn';
+    h += '<div class="search-block">' +
+      '<div><span class="badge ' + badge + '" style="margin-right:6px">' + esc(s.status) + '</span><span class="qtext">"' + esc(s.query_text) + '"</span></div>' +
+      '<div class="card-meta" style="margin-top:4px">top_k: ' + s.top_k + ' · 候选: ' + s.candidate_count + (s.latency_ms ? ' · ' + s.latency_ms + 'ms' : '') + '</div>';
+
+    // Candidates
+    const cands = candidatesBySearch[s.search_id] || [];
+    if (cands.length) {
+      h += '<div style="margin-top:6px">';
+      for (const c of cands) {
+        const doc = docMap[c.knowledge_id];
+        const displayPath = doc ? doc.path : c.knowledge_id;
+        h += '<div class="candidate-row">' +
+          '<span class="kid" title="' + esc(displayPath) + '">' + esc(displayPath) + '</span>' +
+          '<span style="display:flex;gap:6px;align-items:center;flex-shrink:0">' +
+            (doc ? '<span class="badge badge-info" style="font-size:10px">' + esc(doc.semantic_type || 'unclassified') + '</span>' : '') +
+            '<span style="font-weight:600;min-width:36px;text-align:right">' + c.score + '</span>' +
+            '<span style="font-size:10px;color:var(--muted)">#' + c.rank + '</span>' +
+          '</span>' +
+        '</div>';
+      }
+      h += '</div>';
+    }
+    if (s.error_message) h += '<div style="font-size:11px;color:var(--red);margin-top:4px">' + esc(s.error_message) + '</div>';
+    h += '</div>';
+  }
+  h += '</div>';
+
+  // --- Reads ---
+  h += '<div class="detail-section"><h4>文档读取 <span class="count">(' + reads.length + ')</span></h4>';
+  if (!reads.length) {
+    h += '<div class="card-meta">无</div>';
+  } else {
+    for (const r of reads) {
+      const doc = docMap[r.knowledge_id];
+      h += '<div class="read-row">' +
+        '<span class="badge ' + (r.adopted ? 'badge-ok' : 'badge') + '" style="font-size:10px;flex-shrink:0">' + (r.adopted ? '已采用' : '未采用') + '</span>' +
+        '<span class="kid" title="' + esc(r.knowledge_id) + '">' + esc(r.knowledge_id) + '</span>' +
+        (doc ? '<span style="font-size:10px;color:var(--muted);flex-shrink:0">' + esc(doc.title || '') + '</span>' : '') +
+      '</div>';
+    }
+  }
+  h += '</div>';
+
+  // --- Evidence ---
+  h += '<div class="detail-section"><h4>证据 <span class="count">(' + evidence.length + ')</span></h4>';
+  if (!evidence.length) {
+    h += '<div class="card-meta">无</div>';
+  } else {
+    for (const e of evidence) {
+      h += '<div class="evidence-row">' +
+        '<div style="display:flex;gap:6px;align-items:center;margin-bottom:2px">' +
+          '<span class="badge">L' + e.line_start + '-' + e.line_end + '</span>' +
+          '<span class="mono" style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(e.knowledge_id || '') + '</span>' +
+        '</div>' +
+        '<div class="snippet">' + esc(e.snippet) + '</div>' +
+        (e.reason ? '<div class="reason">' + esc(e.reason) + '</div>' : '') +
+      '</div>';
+    }
+  }
+  h += '</div>';
+
+  return h;
+}
+
+function renderTasks(tasks) {
+  if (!tasks.length) return document.getElementById("panel-tasks").innerHTML = '<div class="empty">暂无 Task</div>';
+  // Keep existing expanded tasks visible
+  const existingExpanded = new Set(Object.keys(taskCache));
+
+  document.getElementById("panel-tasks").innerHTML =
+    '<div class="rows">' + tasks.length + ' 个 Task</div>' +
+    tasks.map(t => {
+      const badge = t.status === 'ACTIVE' ? 'badge-ok' : t.status === 'ABANDONED' ? 'badge-err' : 'badge';
+      return '<div class="card task-card" data-task-id="' + esc(t.task_id) + '">' +
+        '<div class="card-header" onclick="toggleTask(\'' + esc(t.task_id) + '\', this.parentElement)">' +
+          '<div>' +
+            '<div style="display:flex;align-items:center;gap:6px">' +
+              '<span class="expand-icon">▶</span>' +
+              '<span class="card-id mono">' + esc(t.task_id) + '</span>' +
+              (t.conversation_id ? '<span class="badge" style="font-size:10px" title="' + esc(t.conversation_id) + '">↗ 对话</span>' : '') +
+            '</div>' +
+            '<div class="card-title">' + esc(t.task_desc) + '</div>' +
+          '</div>' +
+          '<span class="badge ' + badge + '" style="flex-shrink:0">' + esc(t.status) + '</span>' +
+        '</div>' +
+        '<div class="card-meta">搜索 ' + t.search_count + ' · 读取 ' + t.document_read_count + ' · 证据 ' + t.evidence_count + '</div>' +
+      '</div>';
+    }).join("");
+
+  // Re-expand previously expanded tasks
+  for (const tid of existingExpanded) {
+    const el = document.querySelector('.task-card[data-task-id="' + CSS.escape(tid) + '"]');
+    if (el) toggleTask(tid, el);
+  }
+}
+
+// --- Docs ---
+function renderDocs(docs) {
+  if (!docs.length) return document.getElementById("panel-docs").innerHTML = '<div class="empty">暂无文档索引</div>';
+
+  const cats = {};
+  for (const d of docs) {
+    const cat = d.category || "general";
+    (cats[cat] ??= { n: 0, entity: 0, concept: 0, unclassified: 0 });
+    cats[cat].n++;
+    cats[cat][d.semantic_type || "unclassified"] = (cats[cat][d.semantic_type || "unclassified"] || 0) + 1;
+  }
+  const sorted = Object.entries(cats).sort((a,b) => b[1].n - a[1].n);
+
+  document.getElementById("panel-docs").innerHTML =
+    '<div class="cat-grid">' + sorted.map(([cat, info]) => `<div class="cat-card">
+      <div class="num">${info.n}</div>
+      <div class="name">${esc(cat)}</div>
+      <div class="sub"><span style="color:var(--green)">实体 ${info.entity}</span> · <span style="color:var(--purple)">概念 ${info.concept}</span> · <span style="color:var(--muted)">未分类 ${info.unclassified}</span></div>
+    </div>`).join("") + '</div>' +
+    '<div class="rows">' + docs.length + ' 篇文档</div>' +
+    '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; margin-top: 8px;">' +
+    docs.map(d => {
+      const st = d.semantic_type || "unclassified";
+      const stBadge = st === "entity" ? "badge-ok" : st === "concept" ? "badge-info" : "badge";
+      return `<div class="card" style="${d.deleted_at ? 'opacity:.5' : ''}">
+        <div class="mono" style="color:var(--muted);word-break:break-all;font-size:11px">${esc(d.knowledge_id)}</div>
+        <div style="font-weight:600;margin:4px 0">${esc(d.title || '(无标题)')}</div>
+        <span class="badge">${esc(d.category || 'general')}</span> <span class="badge ${stBadge}">${st}</span>
+        ${d.deleted_at ? '<span class="badge badge-err">已删除</span>' : ''}
+      </div>`;
+    }).join("") + '</div>';
+}
+
+// --- Tabs ---
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("panel-" + btn.dataset.panel).classList.add("active");
+  });
+});
+
+// --- Auto-refresh ---
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
