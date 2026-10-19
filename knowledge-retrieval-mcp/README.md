@@ -200,20 +200,63 @@ knowledge_task 1---N knowledge_search 1---N knowledge_candidate
 服务启动时会把遗留的 `RUNNING` 搜索标记为 `CRASHED`，并把本次扫描未发现的知识标记为软删除。
 库表定义见 [src/storage/schema.sql](./src/storage/schema.sql)。
 
-## 检索质量分析看板
+## 查看检索情况
+
+每次 `search_knowledge`、`read_knowledge` 和 `cite_evidence` 调用都会写入
+`TRACE_DB_PATH` 指向的留痕库。可通过实时看板或 SQLite 命令行查看。
+
+### 实时看板
+
+在 MCP 项目目录启动看板，并把 `TRACE_DB_PATH` 替换为配置给 MCP 的同一路径：
 
 ```bash
-TRACE_DB_PATH=/absolute/path/to/data/trace.db npm run dashboard
-# http://localhost:3100   （可用 PORT 覆盖端口）
+cd /Users/me/mcp-development/knowledge-retrieval-mcp
+TRACE_DB_PATH=/Users/me/.knowledge-retrieval/trace.db npm run dashboard
 ```
 
-看板按 任务 / 搜索 / 文档 维度展示检索情况，核心判定：
+浏览器打开 `http://localhost:3100`。服务默认使用端口 `3100`；端口冲突时可指定
+其他端口：
+
+```bash
+PORT=3101 TRACE_DB_PATH=/Users/me/.knowledge-retrieval/trace.db npm run dashboard
+```
+
+看板按任务、搜索和文档维度展示检索情况。重点查看「质量分析」页中的每一条搜索：
 
 | 现象 | 判定 | 含义 |
 | --- | --- | --- |
 | 召回但未被阅读 | - | 摘要/标题不足以判断，或检索词偏差 |
 | 读取全文但无 evidence | **知识缺失** | 检索词合理但知识库缺该主题内容，需补充 Wiki |
 | 读取全文且有 evidence | 有效 | 检索与内容均匹配 |
+
+### 命令行查询
+
+安装了 SQLite 命令行工具时，可直接打开同一个文件：
+
+```bash
+sqlite3 /Users/me/.knowledge-retrieval/trace.db
+```
+
+例如，查看最近的搜索及其候选、阅读和证据数量：
+
+```sql
+SELECT
+  s.created_at,
+  s.task_id,
+  s.query_text,
+  s.candidate_count,
+  COUNT(DISTINCT r.read_id) AS read_count,
+  COUNT(DISTINCT e.evidence_id) AS evidence_count
+FROM knowledge_search AS s
+LEFT JOIN document_read AS r ON r.search_id = s.search_id
+LEFT JOIN evidence AS e ON e.read_id = r.read_id
+GROUP BY s.search_id
+ORDER BY s.created_at DESC
+LIMIT 20;
+```
+
+`evidence_count = 0` 且 `read_count > 0` 的搜索，表示 Agent 已读过候选全文但没有
+引用到有效内容，是排查知识缺失的主要入口。
 
 ## 测试
 
