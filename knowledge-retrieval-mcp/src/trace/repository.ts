@@ -30,17 +30,17 @@ export class TraceRepository {
 
   createTask(input: {
     taskId: string;
-    taskDesc: string;
+    taskIntent: string;
     conversationId?: string;
     indexVersion: string;
   }): void {
     this.database
       .prepare(`
         INSERT INTO knowledge_task (
-          task_id, task_desc, conversation_id, index_version, status, created_at
+          task_id, task_intent, conversation_id, index_version, status, created_at
         ) VALUES (?, ?, ?, ?, 'ACTIVE', ?)
       `)
-      .run(input.taskId, input.taskDesc, input.conversationId ?? null, input.indexVersion, now());
+      .run(input.taskId, input.taskIntent, input.conversationId ?? null, input.indexVersion, now());
   }
 
   closeTask(taskId: string): void {

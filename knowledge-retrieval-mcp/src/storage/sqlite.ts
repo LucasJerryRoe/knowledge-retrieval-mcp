@@ -24,7 +24,7 @@ const SCHEMA = `
 
 	CREATE TABLE IF NOT EXISTS knowledge_task (
 		  task_id TEXT PRIMARY KEY,
-		  task_desc TEXT NOT NULL,
+		  task_intent TEXT NOT NULL,
 		  conversation_id TEXT,
 		  index_version TEXT NOT NULL,
 		  status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'CLOSED', 'ABANDONED')),
@@ -96,6 +96,17 @@ const SCHEMA = `
 
 export type SqliteDatabase = Database.Database;
 
+function migrateTaskIntent(database: SqliteDatabase): void {
+  const columns = database
+    .prepare("PRAGMA table_info(knowledge_task)")
+    .all() as Array<{ name: string }>;
+  const columnNames = new Set(columns.map((column) => column.name));
+
+  if (!columnNames.has("task_intent") && columnNames.has("task_desc")) {
+    database.exec("ALTER TABLE knowledge_task RENAME COLUMN task_desc TO task_intent");
+  }
+}
+
 export function openDatabase(databasePath: string): SqliteDatabase {
   if (databasePath !== ":memory:") {
     mkdirSync(path.dirname(path.resolve(databasePath)), { recursive: true });
@@ -104,5 +115,6 @@ export function openDatabase(databasePath: string): SqliteDatabase {
   database.pragma("foreign_keys = ON");
   database.pragma("journal_mode = WAL");
   database.exec(SCHEMA);
+  migrateTaskIntent(database);
   return database;
 }

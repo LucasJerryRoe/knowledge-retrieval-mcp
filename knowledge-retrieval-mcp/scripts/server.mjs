@@ -45,7 +45,7 @@ function handleSummary() {
 
 function handleTasks() {
   return query(`
-    SELECT task_id, task_desc, conversation_id, index_version, status, search_count, document_read_count, evidence_count, created_at, closed_at
+    SELECT task_id, task_intent, conversation_id, index_version, status, search_count, document_read_count, evidence_count, created_at, closed_at
     FROM knowledge_task ORDER BY created_at DESC
   `);
 }
@@ -115,7 +115,7 @@ function handleQualityOverview() {
 
   // 每个 task 的质量指标
   const taskQuality = query(`
-    SELECT t.task_id, t.task_desc, t.status,
+    SELECT t.task_id, t.task_intent, t.status,
            t.search_count, t.document_read_count, t.evidence_count,
            (SELECT COUNT(DISTINCT c.knowledge_id)
             FROM knowledge_search s2
@@ -145,7 +145,7 @@ function handleQualitySearches(params) {
   // 每条搜索的质量指标
   const searches = taskFilter
     ? query(`
-        SELECT s.search_id, t.task_id, t.task_desc, s.query_text, s.top_k, s.status,
+        SELECT s.search_id, t.task_id, t.task_intent, s.query_text, s.top_k, s.status,
                s.candidate_count, s.latency_ms, s.created_at
         FROM knowledge_search s
         JOIN knowledge_task t ON t.task_id = s.task_id
@@ -153,7 +153,7 @@ function handleQualitySearches(params) {
         ORDER BY s.created_at DESC
       `, taskFilter)
     : query(`
-        SELECT s.search_id, t.task_id, t.task_desc, s.query_text, s.top_k, s.status,
+        SELECT s.search_id, t.task_id, t.task_intent, s.query_text, s.top_k, s.status,
                s.candidate_count, s.latency_ms, s.created_at
         FROM knowledge_search s
         JOIN knowledge_task t ON t.task_id = s.task_id
@@ -204,7 +204,7 @@ function handleQualitySearches(params) {
     return {
       searchId: s.search_id,
       taskId: s.task_id,
-      taskDesc: s.task_desc,
+      taskIntent: s.task_intent,
       queryText: s.query_text,
       topK: s.top_k,
       latencyMs: s.latency_ms,

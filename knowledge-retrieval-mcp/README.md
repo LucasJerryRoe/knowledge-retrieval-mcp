@@ -44,8 +44,8 @@ PostgreSQL 等数据库服务。
 要求 Node.js >= 20。克隆仓库后，安装依赖并构建：
 
 ```bash
-git clone git@code.byted.org:motor_qa/mcp-development.git
-cd mcp-development/knowledge-retrieval-mcp
+git clone https://github.com/LucasJerryRoe/knowledge-retrieval-mcp.git
+cd knowledge-retrieval-mcp/knowledge-retrieval-mcp
 npm install
 npm run build
 ```
@@ -125,7 +125,8 @@ stdio 场景下 stdout 专用于 MCP 协议，运行日志只写 stderr。
 | 参数 | 必填 | 说明 |
 | --- | --- | --- |
 | `query` | 是 | 查询词，去首尾空白后 1-512 字符 |
-| `task_id` | 是 | 调查任务标识，同一主题的多次搜索传同一个值，作为质量分析的聚合键 |
+| `task_id` | 是 | 调查任务的稳定聚合标识；同一主题的多次搜索传同一个值 |
+| `task_intent` | 是 | 一句人类可读的调查目标，例如“查询合同模板管理后台地址及入口”；同一 `task_id` 必须保持一致 |
 | `top_k` | 否 | 候选数量，需在 `1..MAX_TOP_K` 内 |
 | `type` | 否 | `entity` 或 `concept`；不传则搜索所有类型 |
 
@@ -134,6 +135,8 @@ stdio 场景下 stdout 专用于 MCP 协议，运行日志只写 stderr。
 ```json
 {
   "query_id": "q_...",
+  "task_id": "contract-console-url",
+  "task_intent": "查询合同模板管理后台地址及入口",
   "results": [
     {
       "candidate_id": "c_...",
@@ -183,7 +186,7 @@ stdio 场景下 stdout 专用于 MCP 协议，运行日志只写 stderr。
 | 表 | 内容 |
 | --- | --- |
 | `knowledge_document` | 知识文档元数据（含软删除标记） |
-| `knowledge_task` | 按 `task_id` 聚合的调查任务，含任务描述 |
+| `knowledge_task` | 按 `task_id` 聚合的调查任务，保存 `task_intent` |
 | `knowledge_search` | 每次搜索（query、task_id、会话） |
 | `knowledge_candidate` | 每次搜索召回并排序的候选 |
 | `document_read` | 实际读取的文档及其版本 |

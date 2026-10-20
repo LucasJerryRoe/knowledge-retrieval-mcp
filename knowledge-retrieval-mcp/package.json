@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Knowledge Retrieval MCP Server (v1) - lexical retrieval over Markdown wiki with full query/candidate/read trace.",
   "type": "module",
-  "private": true,
+  "private": false,
   "engines": {
     "node": ">=20"
   },

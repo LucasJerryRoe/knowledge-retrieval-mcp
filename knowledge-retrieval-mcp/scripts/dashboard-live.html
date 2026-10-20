@@ -185,7 +185,7 @@ function renderQuality(searches) {
   // Group by task
   const taskGroups = {};
   for (const s of searches) {
-    (taskGroups[s.taskId] ??= { taskId: s.taskId, taskDesc: s.taskDesc, searches: [] }).searches.push(s);
+    (taskGroups[s.taskId] ??= { taskId: s.taskId, taskIntent: s.taskIntent, searches: [] }).searches.push(s);
   }
 
   // Aggregate stats
@@ -229,7 +229,7 @@ function renderQuality(searches) {
           '<span class="expand-icon" id="qexp-' + taskId + '" onclick="toggleQualityExpand(\'' + taskId + '\')">▶</span>' +
           '<span class="card-id mono">' + shortId(taskId) + '</span>' +
           (taskLabel ? '<span class="badge ' + taskLabelCls + '">' + taskLabel + '</span>' : '') +
-          '<span class="card-title" style="font-size:13px">' + esc(group.taskDesc || '(无描述)') + '</span>' +
+          '<span class="card-title" style="font-size:13px">' + esc(group.taskIntent || '(未记录意图)') + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="card-meta">' +
@@ -425,7 +425,7 @@ function renderTasks(tasks) {
               '<span class="card-id mono">' + esc(t.task_id) + '</span>' +
               (t.conversation_id ? '<span class="badge" style="font-size:10px" title="' + esc(t.conversation_id) + '">↗ 对话</span>' : '') +
             '</div>' +
-            '<div class="card-title">' + esc(t.task_desc) + '</div>' +
+            '<div class="card-title">' + esc(t.task_intent || '(未记录意图)') + '</div>' +
           '</div>' +
           '<span class="badge ' + badge + '" style="flex-shrink:0">' + esc(t.status) + '</span>' +
         '</div>' +
