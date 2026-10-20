@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Knowledge Retrieval Trace</title>
+<title>Agent Knowledge Trace</title>
 <style>
 :root { --bg: #f5f5f5; --card: #fff; --text: #333; --muted: #888; --blue: #2563eb; --green: #059669; --purple: #7c3aed; --red: #dc2626; --orange: #d97706; --border: #e5e7eb; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -94,21 +94,21 @@ h1 { font-size: 20px; margin-bottom: 4px; }
 </style>
 </head>
 <body>
-<h1>知识检索 Trace</h1>
-<div class="subtitle">实时刷新 · 每 3 秒</div>
+<h1>Agent Knowledge Trace</h1>
+<div class="subtitle">记录 Agent 搜过什么、读过什么、最终引用了什么 · 每 3 秒实时刷新</div>
 
 <div id="insight-stats" class="stats"></div>
 
 <div class="tabs">
-  <button class="tab" data-panel="insights">洞察</button>
-  <button class="tab active" data-panel="tasks">Knowledge Task</button>
-  <button class="tab" data-panel="quality">质量分析</button>
+  <button class="tab active" data-panel="quality">复盘</button>
+  <button class="tab" data-panel="tasks">任务轨迹</button>
+  <button class="tab" data-panel="insights">知识概览</button>
   <button class="tab" data-panel="docs">文档索引</button>
 </div>
 
 <div id="panel-insights" class="panel"></div>
-<div id="panel-tasks" class="panel active"></div>
-<div id="panel-quality" class="panel"></div>
+<div id="panel-tasks" class="panel"></div>
+<div id="panel-quality" class="panel active"></div>
 <div id="panel-docs" class="panel"></div>
 
 <script>
@@ -116,6 +116,7 @@ const API = "";
 let docMap = {};
 let summary = {};
 let taskCache = {};  // taskId → expanded detail
+const qualityExpanded = new Set();
 
 async function fetchAPI(path) {
   const res = await fetch(API + path);
@@ -149,12 +150,12 @@ function shortId(id, n=8) { return id ? id.substring(0,n) : ""; }
 // --- Stats ---
 function renderStats(s) {
   document.getElementById("insight-stats").innerHTML =
-    `<div class="stat"><div class="val">${s.tasks}</div><div class="label">Tasks</div></div>
+    `<div class="stat"><div class="val">${s.tasks}</div><div class="label">任务</div></div>
     <div class="stat"><div class="val">${s.activeTasks}</div><div class="label">活跃</div></div>
-    <div class="stat"><div class="val">${s.searches}</div><div class="label">搜索</div></div>
-    <div class="stat"><div class="val">${s.reads}</div><div class="label">文档读取</div></div>
-    <div class="stat"><div class="val">${s.evidence}</div><div class="label">证据</div></div>
-    <div class="stat"><div class="val">${s.docs}</div><div class="label">文档索引</div></div>`;
+    <div class="stat"><div class="val">${s.searches}</div><div class="label">检索尝试</div></div>
+    <div class="stat"><div class="val">${s.reads}</div><div class="label">全文阅读</div></div>
+    <div class="stat"><div class="val">${s.evidence}</div><div class="label">证据引用</div></div>
+    <div class="stat"><div class="val">${s.docs}</div><div class="label">知识文档</div></div>`;
 }
 
 // --- Insights ---
@@ -200,10 +201,10 @@ function renderQuality(searches) {
 
   // ---- Aggregate cards ----
   h += '<div class="quality-grid">' +
-    '<div class="quality-card"><div class="num">' + totalSearches + '</div><div class="label">搜索次数</div></div>' +
-    '<div class="quality-card"><div class="num q-danger">' + knowledgeGapSearches + '</div><div class="label">知识缺失</div><div class="sub">读了全文但无证据 — 需补充 Wiki</div></div>' +
-    '<div class="quality-card"><div class="num">' + effectiveSearches + '</div><div class="label">有效搜索</div><div class="sub">产生证据引用</div></div>' +
-    '<div class="quality-card"><div class="num">' + totalCandidates + '</div><div class="label">总召回</div><div class="sub">' + totalRead + ' 读 · ' + totalAdopted + ' 采用</div></div>' +
+    '<div class="quality-card"><div class="num">' + totalSearches + '</div><div class="label">检索尝试</div><div class="sub">Agent 为完成任务发起的查询</div></div>' +
+    '<div class="quality-card"><div class="num q-danger">' + knowledgeGapSearches + '</div><div class="label">知识缺失</div><div class="sub">读了全文，但找不到可引用答案</div></div>' +
+    '<div class="quality-card"><div class="num q-ok">' + effectiveSearches + '</div><div class="label">形成证据</div><div class="sub">找到并引用了原文依据</div></div>' +
+    '<div class="quality-card"><div class="num">' + totalCandidates + '</div><div class="label">候选流转</div><div class="sub">' + totalRead + ' 篇被读 · ' + totalAdopted + ' 篇被采用</div></div>' +
   '</div>';
 
   // ---- Per-task search detail ----
@@ -214,6 +215,7 @@ function renderQuality(searches) {
     const taskTotal = group.searches.reduce((t, s) => t + s.candidateCount, 0);
     const taskRead = group.searches.reduce((t, s) => t + s.readCount, 0);
     const taskAdopted = group.searches.reduce((t, s) => t + s.adoptedCount, 0);
+    const expanded = qualityExpanded.has(taskId);
 
     // Task-level quality: 仅标记知识缺失
     let taskLabel = "";
@@ -226,7 +228,7 @@ function renderQuality(searches) {
     h += '<div class="card" style="margin-bottom:12px">' +
       '<div class="card-header" style="flex-wrap:wrap;gap:4px">' +
         '<div style="display:flex;align-items:center;gap:6px">' +
-          '<span class="expand-icon" id="qexp-' + taskId + '" onclick="toggleQualityExpand(\'' + taskId + '\')">▶</span>' +
+          '<span class="expand-icon' + (expanded ? ' open' : '') + '" id="qexp-' + taskId + '" onclick="toggleQualityExpand(\'' + taskId + '\')">▶</span>' +
           '<span class="card-id mono">' + shortId(taskId) + '</span>' +
           (taskLabel ? '<span class="badge ' + taskLabelCls + '">' + taskLabel + '</span>' : '') +
           '<span class="card-title" style="font-size:13px">' + esc(group.taskIntent || '(未记录意图)') + '</span>' +
@@ -237,7 +239,7 @@ function renderQuality(searches) {
         (gapCount > 0 ? ' · <span class="q-danger">知识缺失 ' + gapCount + '</span>' : '') +
         (unreadCount > 0 ? ' · <span class="q-warn">未读 ' + unreadCount + '</span>' : '') +
       '</div>' +
-      '<div class="detail" id="qdetail-' + taskId + '" style="display:none">' +
+      '<div class="detail" id="qdetail-' + taskId + '" style="display:' + (expanded ? 'block' : 'none') + '">' +
         group.searches.map(s => renderSearchQualityRow(s)).join("") +
       '</div>' +
     '</div>';
@@ -304,19 +306,23 @@ function toggleQualityExpand(taskId) {
   if (detail.style.display === "none") {
     detail.style.display = "block";
     icon.classList.add("open");
+    qualityExpanded.add(taskId);
   } else {
     detail.style.display = "none";
     icon.classList.remove("open");
+    qualityExpanded.delete(taskId);
   }
 }
 
 // --- Tasks (expandable) ---
 async function toggleTask(taskId, el) {
   const detailEl = el.querySelector(".task-detail");
+  const icon = el.querySelector(".expand-icon");
   if (detailEl) {
     // Collapse
     detailEl.remove();
     delete taskCache[taskId];
+    icon?.classList.remove("open");
     return;
   }
 
@@ -334,6 +340,7 @@ async function toggleTask(taskId, el) {
     div.innerHTML = renderTaskDetail(detail);
   }
   el.appendChild(div);
+  icon?.classList.add("open");
 }
 
 function renderTaskDetail(detail) {

@@ -1,16 +1,37 @@
 # Knowledge Retrieval MCP
 
-让 Agent 在你的本地 Markdown 知识库中找到答案，并且说清楚答案来自哪里。
+Agent 的知识使用飞行记录器。
 
-这个 MCP 提供 `search_knowledge`、`read_knowledge`、`cite_evidence` 三个工具，
-把“搜索 → 阅读 → 引用”串成一条可追溯证据链。知识库只读留在本机，检索和留痕使用本地 SQLite，
-无需上传文档，也无需维护独立数据库。
+它不仅让 Agent 从本地 Markdown 知识库中找到答案，还记录 Agent 为完成任务搜过什么、读过什么、最终引用了什么。回答出现问题时，可以沿着 Trace 判断是召回偏差、没有阅读、知识缺失，还是证据没有被采用。
+
+知识库只读留在本机，Trace 写入本地 SQLite，无需上传文档，也无需维护独立数据库。
 
 设计文档见 [docs/knowledge_retrieval_mcp_v1.md](./docs/knowledge_retrieval_mcp_v1.md)。
 
-## 为什么优先用它而不是 grep
+## 记录与复盘
 
-裸 grep 只能做扁平的全文关键词匹配。本 MCP 在其之上提供了：
+![Agent knowledge trace review](../docs/assets/trace-review.png)
+
+看板按任务聚合每次检索，展示候选文档、实际阅读和最终证据，并自动标记两类重要结果：
+
+- **形成证据**：Agent 阅读文档后引用了原文，回答路径可追溯。
+- **知识缺失**：Agent 阅读了相关文档，但找不到可引用答案，说明知识库需要补充。
+
+展开任务后，可以看到完整的搜索、阅读和证据记录：
+
+![Task trace with searches, reads and evidence](../docs/assets/trace-task.png)
+
+```text
+Knowledge Task
+├── Search attempts
+│   └── Ranked candidates
+├── Documents actually read
+└── Evidence cited in the final answer
+```
+
+## 检索只是采集入口
+
+为了让记录具有可解释性，MCP 内置了确定性的加权词法检索：
 
 - **分层加权排序**：标题 3.0 / 小标题 2.5 / 摘要 2.0 / 正文 1.0，完整短语命中额外加分
 - **直接返回摘要片段**：无需逐个打开文件即可判断相关性

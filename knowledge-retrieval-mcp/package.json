@@ -1,7 +1,7 @@
 {
   "name": "knowledge-retrieval-mcp",
   "version": "0.1.0",
-  "description": "Local-first MCP server for searching, reading, and citing evidence from Markdown knowledge bases with full retrieval tracing.",
+  "description": "A local-first flight recorder for how AI agents search, read, and cite knowledge from Markdown.",
   "type": "module",
   "private": false,
   "engines": {
