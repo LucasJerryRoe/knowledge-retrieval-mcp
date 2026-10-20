@@ -1,7 +1,7 @@
 {
   "name": "knowledge-retrieval-mcp",
   "version": "0.1.0",
-  "description": "Knowledge Retrieval MCP Server (v1) - lexical retrieval over Markdown wiki with full query/candidate/read trace.",
+  "description": "Local-first MCP server for searching, reading, and citing evidence from Markdown knowledge bases with full retrieval tracing.",
   "type": "module",
   "private": false,
   "engines": {

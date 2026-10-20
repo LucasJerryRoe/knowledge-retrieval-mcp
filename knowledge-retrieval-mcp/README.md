@@ -1,8 +1,10 @@
-# knowledge-retrieval-mcp
+# Knowledge Retrieval MCP
 
-面向 Agent 的只读 Markdown 知识检索 MCP。对外提供 `search_knowledge`、`read_knowledge`、
-`cite_evidence` 三个工具，并在 SQLite 中记录完整的 检索 → 阅读 → 引用 链路，
-用于诊断知识库的覆盖质量。
+让 Agent 在你的本地 Markdown 知识库中找到答案，并且说清楚答案来自哪里。
+
+这个 MCP 提供 `search_knowledge`、`read_knowledge`、`cite_evidence` 三个工具，
+把“搜索 → 阅读 → 引用”串成一条可追溯证据链。知识库只读留在本机，检索和留痕使用本地 SQLite，
+无需上传文档，也无需维护独立数据库。
 
 设计文档见 [docs/knowledge_retrieval_mcp_v1.md](./docs/knowledge_retrieval_mcp_v1.md)。
 
