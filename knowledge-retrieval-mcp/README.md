@@ -1,14 +1,37 @@
-# knowledge-retrieval-mcp
+# Knowledge Retrieval MCP
 
-面向 Agent 的只读 Markdown 知识检索 MCP。对外提供 `search_knowledge`、`read_knowledge`、
-`cite_evidence` 三个工具，并在 SQLite 中记录完整的 检索 → 阅读 → 引用 链路，
-用于诊断知识库的覆盖质量。
+Agent 的知识使用飞行记录器。
+
+它不仅让 Agent 从本地 Markdown 知识库中找到答案，还记录 Agent 为完成任务搜过什么、读过什么、最终引用了什么。回答出现问题时，可以沿着 Trace 判断是召回偏差、没有阅读、知识缺失，还是证据没有被采用。
+
+知识库只读留在本机，Trace 写入本地 SQLite，无需上传文档，也无需维护独立数据库。
 
 设计文档见 [docs/knowledge_retrieval_mcp_v1.md](./docs/knowledge_retrieval_mcp_v1.md)。
 
-## 为什么优先用它而不是 grep
+## 记录与复盘
 
-裸 grep 只能做扁平的全文关键词匹配。本 MCP 在其之上提供了：
+![Agent knowledge trace review](../docs/assets/trace-review.png)
+
+看板按任务聚合每次检索，展示候选文档、实际阅读和最终证据，并自动标记两类重要结果：
+
+- **形成证据**：Agent 阅读文档后引用了原文，回答路径可追溯。
+- **知识缺失**：Agent 阅读了相关文档，但找不到可引用答案，说明知识库需要补充。
+
+展开任务后，可以看到完整的搜索、阅读和证据记录：
+
+![Task trace with searches, reads and evidence](../docs/assets/trace-task.png)
+
+```text
+Knowledge Task
+├── Search attempts
+│   └── Ranked candidates
+├── Documents actually read
+└── Evidence cited in the final answer
+```
+
+## 检索只是采集入口
+
+为了让记录具有可解释性，MCP 内置了确定性的加权词法检索：
 
 - **分层加权排序**：标题 3.0 / 小标题 2.5 / 摘要 2.0 / 正文 1.0，完整短语命中额外加分
 - **直接返回摘要片段**：无需逐个打开文件即可判断相关性
@@ -44,8 +67,8 @@ PostgreSQL 等数据库服务。
 要求 Node.js >= 20。克隆仓库后，安装依赖并构建：
 
 ```bash
-git clone git@code.byted.org:motor_qa/mcp-development.git
-cd mcp-development/knowledge-retrieval-mcp
+git clone https://github.com/LucasJerryRoe/knowledge-retrieval-mcp.git
+cd knowledge-retrieval-mcp/knowledge-retrieval-mcp
 npm install
 npm run build
 ```
@@ -125,7 +148,8 @@ stdio 场景下 stdout 专用于 MCP 协议，运行日志只写 stderr。
 | 参数 | 必填 | 说明 |
 | --- | --- | --- |
 | `query` | 是 | 查询词，去首尾空白后 1-512 字符 |
-| `task_id` | 是 | 调查任务标识，同一主题的多次搜索传同一个值，作为质量分析的聚合键 |
+| `task_id` | 是 | 调查任务的稳定聚合标识；同一主题的多次搜索传同一个值 |
+| `task_intent` | 是 | 一句人类可读的调查目标，例如“查询合同模板管理后台地址及入口”；同一 `task_id` 必须保持一致 |
 | `top_k` | 否 | 候选数量，需在 `1..MAX_TOP_K` 内 |
 | `type` | 否 | `entity` 或 `concept`；不传则搜索所有类型 |
 
@@ -134,6 +158,8 @@ stdio 场景下 stdout 专用于 MCP 协议，运行日志只写 stderr。
 ```json
 {
   "query_id": "q_...",
+  "task_id": "contract-console-url",
+  "task_intent": "查询合同模板管理后台地址及入口",
   "results": [
     {
       "candidate_id": "c_...",
@@ -183,7 +209,7 @@ stdio 场景下 stdout 专用于 MCP 协议，运行日志只写 stderr。
 | 表 | 内容 |
 | --- | --- |
 | `knowledge_document` | 知识文档元数据（含软删除标记） |
-| `knowledge_task` | 按 `task_id` 聚合的调查任务，含任务描述 |
+| `knowledge_task` | 按 `task_id` 聚合的调查任务，保存 `task_intent` |
 | `knowledge_search` | 每次搜索（query、task_id、会话） |
 | `knowledge_candidate` | 每次搜索召回并排序的候选 |
 | `document_read` | 实际读取的文档及其版本 |

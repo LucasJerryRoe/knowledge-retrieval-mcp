@@ -21,7 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_doc_semantic_type ON knowledge_document(semantic_
 -- Layer 1: Knowledge Task —— 大模型指定的检索任务（替代原来的 knowledge_session）
 CREATE TABLE IF NOT EXISTS knowledge_task (
   task_id TEXT PRIMARY KEY,
-  task_desc TEXT NOT NULL,
+  task_intent TEXT NOT NULL,
   conversation_id TEXT,
   index_version TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'CLOSED', 'ABANDONED')),

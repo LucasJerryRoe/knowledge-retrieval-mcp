@@ -12,6 +12,7 @@ import type { Config } from "./config.js";
 export interface SearchPayload {
   query_id: string;
   task_id: string;
+  task_intent: string;
   results: Array<{
     candidate_id: string;
     knowledge_id: string;
@@ -77,6 +78,7 @@ export class KnowledgeRuntime {
     query: string,
     requestedTopK: number | undefined,
     taskId: string,
+    taskIntent: string,
     conversationId?: string,
     type?: SemanticType,
   ): Promise<SearchPayload> {
@@ -84,8 +86,15 @@ export class KnowledgeRuntime {
     const topK = requestedTopK ?? this.config.defaultTopK;
     const startedAt = performance.now();
 
-    // 确保 task 存在
-    this.ensureTask(taskId, conversationId);
+    const normalizedTaskIntent = taskIntent.trim();
+    if (normalizedTaskIntent.length < 1 || normalizedTaskIntent.length > 500) {
+      throw new Error(
+        `task_intent length must be in [1, 500] after trim (got ${normalizedTaskIntent.length})`,
+      );
+    }
+
+    // 确保 task 存在且意图一致。
+    this.ensureTask(taskId, normalizedTaskIntent, conversationId);
     this.trace.createSearch({
       searchId,
       taskId,
@@ -128,6 +137,7 @@ export class KnowledgeRuntime {
       return {
         query_id: searchId,
         task_id: taskId,
+        task_intent: normalizedTaskIntent,
         results: candidates.map((candidate) => ({
           candidate_id: candidate.candidateId,
           knowledge_id: candidate.knowledgeId,
@@ -240,17 +250,28 @@ export class KnowledgeRuntime {
 
   // ---- Helpers ----
 
-  private ensureTask(taskId: string, conversationId?: string): void {
+  private ensureTask(
+    taskId: string,
+    taskIntent: string,
+    conversationId?: string,
+  ): void {
     const row = this.database
-      .prepare("SELECT task_id FROM knowledge_task WHERE task_id = ?")
-      .get(taskId);
+      .prepare("SELECT task_intent FROM knowledge_task WHERE task_id = ?")
+      .get(taskId) as { task_intent: string } | undefined;
     if (!row) {
       this.trace.createTask({
         taskId,
-        taskDesc: taskId,
+        taskIntent,
         conversationId,
         indexVersion: this.indexVersion,
       });
+      return;
+    }
+
+    if (row.task_intent !== taskIntent) {
+      throw new Error(
+        `TASK_INTENT_MISMATCH: task_id "${taskId}" is already bound to a different task_intent`,
+      );
     }
   }
 
